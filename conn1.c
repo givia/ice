@@ -26,12 +26,16 @@ static juice_agent_t *agent1;
 static juice_agent_t *agent2;
 
 static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *user_ptr);
+static void on_state_changed2(juice_agent_t *agent, juice_state_t state, void *user_ptr);
 
 static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr);
+static void on_candidate2(juice_agent_t *agent, const char *sdp, void *user_ptr);
 
 static void on_gathering_done1(juice_agent_t *agent, void *user_ptr);
+static void on_gathering_done2(juice_agent_t *agent, void *user_ptr);
 
 static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
+static void on_recv2(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
 
 int test_connectivity() {
 	juice_set_log_level(JUICE_LOG_LEVEL_DEBUG);
@@ -52,6 +56,25 @@ int test_connectivity() {
 
 	agent1 = juice_create(&config1);
 
+	// Agent 2: Create agent
+	juice_config_t config2;
+	memset(&config2, 0, sizeof(config2));
+
+	// STUN server example
+	config2.stun_server_host = "stun.l.google.com";
+	config2.stun_server_port = 19302;
+
+	// Port range example
+	config2.local_port_range_begin = 60000;
+	config2.local_port_range_end = 61000;
+
+	config2.cb_state_changed = on_state_changed2;
+	config2.cb_candidate = on_candidate2;
+	config2.cb_gathering_done = on_gathering_done2;
+	config2.cb_recv = on_recv2;
+	config2.user_ptr = NULL;
+
+	agent2 = juice_create(&config2);
 
 	// Agent 1: Generate local description
 	char sdp1[JUICE_MAX_SDP_STRING_LEN];
@@ -71,8 +94,11 @@ int test_connectivity() {
 
 	// Agent 1: Gather candidates (and send them to agent 2)
 	juice_gather_candidates(agent1);
-	sleep(10);
+	sleep(2);
 
+	// Agent 2: Gather candidates (and send them to agent 1)
+	juice_gather_candidates(agent2);
+	sleep(2);
 
 	// -- Connection should be finished --
 
@@ -120,6 +146,8 @@ int test_connectivity() {
 	// Agent 1: destroy
 	juice_destroy(agent1);
 
+	// Agent 2: destroy
+	juice_destroy(agent2);
 
 	if (success) {
 		printf("Success\n");
@@ -141,7 +169,15 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
 	}
 }
 
-
+// Agent 2: on state changed
+static void on_state_changed2(juice_agent_t *agent, juice_state_t state, void *user_ptr) {
+	printf("State 2: %s\n", juice_state_to_string(state));
+	if (state == JUICE_STATE_CONNECTED) {
+		// Agent 2: on connected, send a message
+		const char *message = "Hello from 2";
+		juice_send(agent, message, strlen(message));
+	}
+}
 
 // Agent 1: on local candidate gathered
 static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr) {
@@ -151,7 +187,13 @@ static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr)
 	juice_add_remote_candidate(agent2, sdp);
 }
 
+// Agent 2: on local candidate gathered
+static void on_candidate2(juice_agent_t *agent, const char *sdp, void *user_ptr) {
+	printf("Candidate 2: %s\n", sdp);
 
+	// Agent 1: Receive it from agent 2
+	juice_add_remote_candidate(agent1, sdp);
+}
 
 // Agent 1: on local candidates gathering done
 static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
@@ -159,6 +201,11 @@ static void on_gathering_done1(juice_agent_t *agent, void *user_ptr) {
 	juice_set_remote_gathering_done(agent2); // optional
 }
 
+// Agent 2: on local candidates gathering done
+static void on_gathering_done2(juice_agent_t *agent, void *user_ptr) {
+	printf("Gathering done 2\n");
+	juice_set_remote_gathering_done(agent1); // optional
+}
 
 // Agent 1: on message received
 static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *user_ptr) {
@@ -170,11 +217,18 @@ static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *
 	printf("Received 1: %s\n", buffer);
 }
 
-
+// Agent 2: on message received
+static void on_recv2(juice_agent_t *agent, const char *data, size_t size, void *user_ptr) {
+	char buffer[BUFFER_SIZE];
+	if (size > BUFFER_SIZE - 1)
+		size = BUFFER_SIZE - 1;
+	memcpy(buffer, data, size);
+	buffer[size] = '\0';
+	printf("Received 2: %s\n", buffer);
+}
 
 int main(int argc, char **argv) {
 	juice_set_log_level(JUICE_LOG_LEVEL_WARN);
-
 
 
 	printf("\nRunning connectivity test...\n");
