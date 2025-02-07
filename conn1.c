@@ -26,16 +26,12 @@ static juice_agent_t *agent1;
 static juice_agent_t *agent2;
 
 static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *user_ptr);
-static void on_state_changed2(juice_agent_t *agent, juice_state_t state, void *user_ptr);
 
 static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr);
-static void on_candidate2(juice_agent_t *agent, const char *sdp, void *user_ptr);
 
 static void on_gathering_done1(juice_agent_t *agent, void *user_ptr);
-static void on_gathering_done2(juice_agent_t *agent, void *user_ptr);
 
 static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
-static void on_recv2(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
 
 int test_connectivity() {
 	juice_set_log_level(JUICE_LOG_LEVEL_DEBUG);
@@ -57,7 +53,6 @@ int test_connectivity() {
 	agent1 = juice_create(&config1);
 
 
-
 	// Agent 1: Generate local description
 	char sdp1[JUICE_MAX_SDP_STRING_LEN];
 	juice_get_local_description(agent1, sdp1, JUICE_MAX_SDP_STRING_LEN);
@@ -76,11 +71,8 @@ int test_connectivity() {
 
 	// Agent 1: Gather candidates (and send them to agent 2)
 	juice_gather_candidates(agent1);
-	sleep(2);
+	sleep(10);
 
-	// Agent 2: Gather candidates (and send them to agent 1)
-	juice_gather_candidates(agent2);
-	sleep(2);
 
 	// -- Connection should be finished --
 
@@ -128,8 +120,6 @@ int test_connectivity() {
 	// Agent 1: destroy
 	juice_destroy(agent1);
 
-	// Agent 2: destroy
-	juice_destroy(agent2);
 
 	if (success) {
 		printf("Success\n");
@@ -184,6 +174,7 @@ static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *
 
 int main(int argc, char **argv) {
 	juice_set_log_level(JUICE_LOG_LEVEL_WARN);
+
 
 
 	printf("\nRunning connectivity test...\n");

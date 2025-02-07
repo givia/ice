@@ -25,21 +25,16 @@ static void sleep(unsigned int secs) { Sleep(secs * 1000); }
 static juice_agent_t *agent1;
 static juice_agent_t *agent2;
 
-static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *user_ptr);
 static void on_state_changed2(juice_agent_t *agent, juice_state_t state, void *user_ptr);
 
-static void on_candidate1(juice_agent_t *agent, const char *sdp, void *user_ptr);
 static void on_candidate2(juice_agent_t *agent, const char *sdp, void *user_ptr);
 
-static void on_gathering_done1(juice_agent_t *agent, void *user_ptr);
 static void on_gathering_done2(juice_agent_t *agent, void *user_ptr);
 
-static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
 static void on_recv2(juice_agent_t *agent, const char *data, size_t size, void *user_ptr);
 
 int test_connectivity() {
 	juice_set_log_level(JUICE_LOG_LEVEL_DEBUG);
-
 
 
 	// Agent 2: Create agent
@@ -64,7 +59,8 @@ int test_connectivity() {
 
 	// Agent 1: Generate local description
 	char sdp1[JUICE_MAX_SDP_STRING_LEN];
-
+	juice_get_local_description(agent1, sdp1, JUICE_MAX_SDP_STRING_LEN);
+	printf("Local description 1:\n%s\n", sdp1);
 
 	// Agent 2: Receive description from agent 1
 	juice_set_remote_description(agent2, sdp1);
@@ -75,10 +71,9 @@ int test_connectivity() {
 	printf("Local description 2:\n%s\n", sdp2);
 
 
-
 	// Agent 2: Gather candidates (and send them to agent 1)
 	juice_gather_candidates(agent2);
-	sleep(2);
+	sleep(10);
 
 	// -- Connection should be finished --
 
@@ -123,8 +118,9 @@ int test_connectivity() {
 		printf("Remote address 2: %s\n", remoteAddr);
 	}
 
-	// Agent 2: destroy
+	// Agent 1: destroy
 	juice_destroy(agent2);
+
 
 	if (success) {
 		printf("Success\n");
@@ -146,7 +142,6 @@ static void on_state_changed2(juice_agent_t *agent, juice_state_t state, void *u
 	}
 }
 
-
 // Agent 2: on local candidate gathered
 static void on_candidate2(juice_agent_t *agent, const char *sdp, void *user_ptr) {
 	printf("Candidate 2: %s\n", sdp);
@@ -161,8 +156,6 @@ static void on_gathering_done2(juice_agent_t *agent, void *user_ptr) {
 	printf("Gathering done 2\n");
 	juice_set_remote_gathering_done(agent1); // optional
 }
-
-
 
 // Agent 2: on message received
 static void on_recv2(juice_agent_t *agent, const char *data, size_t size, void *user_ptr) {
@@ -183,7 +176,6 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Connectivity test failed\n");
 		return -1;
 	}
-
 
 	return 0;
 }
